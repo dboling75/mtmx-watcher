@@ -89,6 +89,8 @@ az servicebus georecovery-alias set \
 
 ## Enhanced Design Diagram
 
-<img src="img/mxmt-dr-enh.png" alt="DR Scenario" width="450"/>
+<!--img src="img/mxmt-dr-enh.png" alt="DR Scenario" width="450"/-->
 
-<img src="img/mxmt-dr-enh-puml.png" alt="DR Scenario" width="650"/>
+<img src="img/mxmt-dr-enh-puml2.png" alt="DR Scenario" width="650"/>
+
+<img src="img/mxmt-dr-enh-puml3.png" alt="DR Scenario" width="650"/>

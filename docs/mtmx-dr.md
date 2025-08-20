@@ -17,7 +17,7 @@
 
 ## Service Bus Geo-DR + Durable Functions + Blob Backup
 
-### 🔹 Architecture Overview
+### Architecture Overview
 
 - **Single Service Bus namespace (Geo-paired)**:  
   US West 2 (Primary), US West Central (Secondary)
@@ -28,30 +28,30 @@
 - **A Blob-based backup log stores message copy before processing**
 - **Redis heartbeat flag ensures only active DC processes**
 
-### ✅ Pros
+### Pros
 
 | **Benefit**                        | **Details**                                                    |
 |-----------------------------------|----------------------------------------------------------------|
-| ✅ Simpler message routing         | Only 1 active queue and SB namespace to write to              |
-| ✅ No duplicates                   | Only 1 queue is active, and only 1 function runner is enabled |
-| ✅ Ordered delivery                | Preserved naturally with Service Bus FIFO support             |
-| ✅ SB alias makes failover seamless| Can be scripted or manually swapped                           |
-| ✅ Redis heartbeat enforces region role | Blocks queue processor in passive region                  |
-| ✅ Blob backup adds resilience     | In case SB or Function fails                                   |
+| Simpler message routing         | Only 1 active queue and SB namespace to write to              |
+| No duplicates                   | Only 1 queue is active, and only 1 function runner is enabled |
+| Ordered delivery                | Preserved naturally with Service Bus FIFO support             |
+| SB alias makes failover seamless| Can be scripted or manually swapped                           |
+| Redis heartbeat enforces region role | Blocks queue processor in passive region                  |
+| Blob backup adds resilience     | In case SB or Function fails                                   |
 
 
 
-### ❌ Cons
+### Cons
 
 | **Limitation**                       | **Details**                                                        |
 |-------------------------------------|---------------------------------------------------------------------|
-| ❌ SB Geo-DR is active/passive only  | Secondary namespace can’t be written to unless failover is triggered |
-| ❌ Failover requires manual/scripting| Alias failover not automatic unless you script it                  |
-| ❌ Processing halted during failover transition | Redis can help smooth this, but there will be a gap       |
-| ❌ Blob backup must be pruned or aged| Or risk cost/complexity over time                                  |
+| SB Geo-DR is active/passive only  | Secondary namespace can’t be written to unless failover is triggered |
+| Failover requires manual/scripting| Alias failover not automatic unless you script it                  |
+| Processing halted during failover transition | Redis can help smooth this, but there will be a gap       |
+| Blob backup must be pruned or aged| Or risk cost/complexity over time                                  |
 
 
-## Advantages
+## Decision Points
 
 - Simpler architecture aligned with active/passive model  
 - Avoids deduplication logic and complex dual write issues  
@@ -59,13 +59,11 @@
 - Blob backup gives you a safety net for RPO without major complexity  
 - Redis heartbeat gates all function execution to prevent duplicates
 
----
 
 ## DR Diagram
 
-![DR Scenario](img/mxmt-dr.png)
+<img src="img/mxmt-dr.png" alt="DR Scenario" width="450"/>
 
----
 
 ## Scenario Matrix
 

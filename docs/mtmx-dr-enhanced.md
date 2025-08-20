@@ -85,3 +85,8 @@ az servicebus georecovery-alias set \
 | No Duplicates          | Idempotency via Message ID, Cosmos/Redis dedupe store          |
 | Seamless Switchover    | Redis TTL & Lease Lock + SB Alias Failover + Watchdog Function |
 | Fast Replay/Recovery   | Blob Replayer with Checkpointing                               |
+
+
+## Enhanced Design Diagram
+
+<img src="img/mxmt-dr-enh.png" alt="DR Scenario" width="450"/>

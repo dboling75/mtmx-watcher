@@ -1,0 +1,70 @@
+@startuml
+skinparam componentStyle rectangle
+skinparam defaultTextAlignment center
+
+' On-Premise Systems
+package "On-Premise Systems" {
+    [MTS]
+    [MTS MQ]
+    [MessageWay]
+    [MTS] --> [MTS MQ]
+}
+
+' US WEST 2 Region
+package "US WEST 2 (DC04)" {
+    [QueueBuilder (DC04)]
+    [Transformation Runner (DC04)]
+    [Watchdog/Recovery Function (DC04)]
+    [Blob Storage (DC04)]
+    [Cosmos DB (DC04)]
+    [Redis (DC04)]
+    [Service Bus Alias (Geo-paired)]
+
+    [MTS MQ] --> [QueueBuilder (DC04)] : Read
+
+    [QueueBuilder (DC04)] --> [Blob Storage (DC04)]
+    [QueueBuilder (DC04)] --> [Service Bus Alias (Geo-paired)]
+
+    [Service Bus Alias (Geo-paired)] --> [Transformation Runner (DC04)]
+    [Transformation Runner (DC04)] --> [Cosmos DB (DC04)]
+    [Transformation Runner (DC04)] --> [Blob Storage (DC04)]
+    [Transformation Runner (DC04)] --> [MessageWay]
+
+    [Watchdog/Recovery Function (DC04)] --> [Blob Storage (DC04)]
+    [Watchdog/Recovery Function (DC04)] --> [Cosmos DB (DC04)]
+    [Watchdog/Recovery Function (DC04)] --> [Service Bus Alias (Geo-paired)]
+    [Watchdog/Recovery Function (DC04)] --> [Redis (DC04)]
+}
+
+' US WEST CENTRAL Region
+package "US WEST CENTRAL (DC06)" {
+    [QueueBuilder (DC06)]
+    [Transformation Runner (DC06)]
+    [Watchdog/Recovery Function (DC06)]
+    [Blob Storage (DC06)]
+    [Cosmos DB (DC06)]
+    [Redis (DC06)]
+    [Service Bus Alias (Geo-paired)]
+
+    [MTS MQ] --> [QueueBuilder (DC06)] : Read
+
+    [QueueBuilder (DC06)] --> [Blob Storage (DC06)]
+    [QueueBuilder (DC06)] --> [Service Bus Alias (Geo-paired)]
+
+    [Service Bus Alias (Geo-paired)] --> [Transformation Runner (DC06)]
+    [Transformation Runner (DC06)] --> [Cosmos DB (DC06)]
+    [Transformation Runner (DC06)] --> [Blob Storage (DC06)]
+    [Transformation Runner (DC06)] --> [MessageWay]
+
+    [Watchdog/Recovery Function (DC06)] --> [Blob Storage (DC06)]
+    [Watchdog/Recovery Function (DC06)] --> [Cosmos DB (DC06)]
+    [Watchdog/Recovery Function (DC06)] --> [Service Bus Alias (Geo-paired)]
+    [Watchdog/Recovery Function (DC06)] --> [Redis (DC06)]
+}
+
+' Replication arrows between DC04 and DC06
+[Blob Storage (DC04)] --> [Blob Storage (DC06)] : replicate
+[Cosmos DB (DC04)] --> [Cosmos DB (DC06)] : replicate
+[Redis (DC04)] --> [Redis (DC06)] : replicate
+
+@enduml

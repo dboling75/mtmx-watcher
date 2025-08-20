@@ -91,6 +91,14 @@ az servicebus georecovery-alias set \
 
 <!--img src="img/mxmt-dr-enh.png" alt="DR Scenario" width="450"/-->
 
+### v2
+
 <img src="img/mxmt-dr-enh-puml2.png" alt="DR Scenario" width="650"/>
 
+### v3
+
 <img src="img/mxmt-dr-enh-puml3.png" alt="DR Scenario" width="650"/>
+
+### v4
+
+<img src="img/mxmt-dr-enh-puml4.png" alt="DR Scenario" width="650"/>

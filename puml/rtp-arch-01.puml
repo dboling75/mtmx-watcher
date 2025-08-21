@@ -1,0 +1,117 @@
+@startuml
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam rectangle {
+  BackgroundColor #F9F9F9
+  BorderColor #333
+}
+skinparam package {
+  BackgroundColor #FFFFFF
+  BorderColor #999
+}
+
+' On-Prem Group
+package "On-Prem (FIS)" {
+  [FIS Core System] as FIS
+}
+
+' Azure Region 1
+package "Azure - US WEST 2 (DC04)" {
+  [GPT] 
+  [Acct Validation Proxy]
+  [Acct Post Proxy]
+  [OFAC Proxy]
+  [Events API Proxy]
+  [RFRF API Proxy]
+  [Acct Validation Function] <<function>>
+  [Acct Post Function] <<function>>
+  [OFAC Function] <<function>>
+  [Events Function] <<function>>
+  [RFRF Function] <<function>>
+  [Watchdog/Recovery Function] <<function>>
+  [Blob Storage (WAL)]
+  [Event Hub]
+  [Redis Cache (DC04)]
+  [CosmosDB (DC04)]
+}
+
+' Azure Region 2
+package "Azure - US WEST CENTRAL (DC06)" {
+  [Acct Validation Proxy DC06]
+  [Acct Post Proxy DC06]
+  [OFAC Proxy DC06]
+  [Events API Proxy DC06]
+  [RFRF API Proxy DC06]
+  [Acct Validation Function DC06] <<function>>
+  [Acct Post Function DC06] <<function>>
+  [OFAC Function DC06] <<function>>
+  [Events Function DC06] <<function>>
+  [RFRF Function DC06] <<function>>
+  [Watchdog/Recovery Function DC06] <<function>>
+  [Blob Storage (WAL) DC06]
+  [Event Hub DC06]
+  [Redis Cache (DC06)]
+  [CosmosDB (DC06)]
+}
+
+' GPT sends inbound messages
+GPT --> [Acct Validation Proxy]
+GPT --> [Acct Post Proxy]
+GPT --> [OFAC Proxy]
+GPT --> [Events API Proxy]
+GPT --> [RFRF API Proxy]
+
+' Function flows (DC04)
+[Acct Validation Proxy] --> [Acct Validation Function]
+[Acct Validation Function] --> FIS
+[Acct Validation Function] --> [CosmosDB (DC04)]
+
+[Acct Post Proxy] --> [Acct Post Function]
+[Acct Post Function] --> FIS
+[Acct Post Function] --> [CosmosDB (DC04)]
+[Acct Post Function] --> [Redis Cache (DC04)]
+
+[OFAC Proxy] --> [OFAC Function]
+[OFAC Function] --> [CosmosDB (DC04)]
+
+[Events API Proxy] --> [Events Function]
+[Events Function] --> [Event Hub]
+[Events Function] --> [CosmosDB (DC04)]
+
+[RFRF API Proxy] --> [RFRF Function]
+[RFRF Function] --> [CosmosDB (DC04)]
+
+[Watchdog/Recovery Function] --> [Blob Storage (WAL)]
+[Watchdog/Recovery Function] --> [CosmosDB (DC04)]
+[Watchdog/Recovery Function] --> [Redis Cache (DC04)]
+
+' Function flows (DC06)
+[Acct Validation Proxy DC06] --> [Acct Validation Function DC06]
+[Acct Validation Function DC06] --> FIS
+[Acct Validation Function DC06] --> [CosmosDB (DC06)]
+
+[Acct Post Proxy DC06] --> [Acct Post Function DC06]
+[Acct Post Function DC06] --> FIS
+[Acct Post Function DC06] --> [CosmosDB (DC06)]
+[Acct Post Function DC06] --> [Redis Cache (DC06)]
+
+[OFAC Proxy DC06] --> [OFAC Function DC06]
+[OFAC Function DC06] --> [CosmosDB (DC06)]
+
+[Events API Proxy DC06] --> [Events Function DC06]
+[Events Function DC06] --> [Event Hub DC06]
+[Events Function DC06] --> [CosmosDB (DC06)]
+
+[RFRF API Proxy DC06] --> [RFRF Function DC06]
+[RFRF Function DC06] --> [CosmosDB (DC06)]
+
+[Watchdog/Recovery Function DC06] --> [Blob Storage (WAL) DC06]
+[Watchdog/Recovery Function DC06] --> [CosmosDB (DC06)]
+[Watchdog/Recovery Function DC06] --> [Redis Cache (DC06)]
+
+' Replication Arrows
+[Redis Cache (DC04)] -[#blue,dashed]-> [Redis Cache (DC06)] : Replicated State
+[CosmosDB (DC04)] -[#blue,dashed]-> [CosmosDB (DC06)] : Global Distribution
+[Blob Storage (WAL)] -[#blue,dashed]-> [Blob Storage (WAL) DC06] : Geo-Replication
+
+@enduml

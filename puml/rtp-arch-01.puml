@@ -10,6 +10,16 @@ skinparam package {
   BorderColor #999
 }
 
+' RBC Group (External)
+package "RBC Toronto" {
+  [GPT]
+}
+
+' CNB Gateway
+[CNB GTM]
+
+GPT --> [CNB GTM]
+
 ' On-Prem Group
 package "On-Prem (FIS)" {
   [FIS Core System] as FIS
@@ -17,18 +27,17 @@ package "On-Prem (FIS)" {
 
 ' Azure Region 1
 package "Azure - US WEST 2 (DC04)" {
-  [GPT] 
   [Acct Validation Proxy]
   [Acct Post Proxy]
   [OFAC Proxy]
   [Events API Proxy]
   [RFRF API Proxy]
-  [Acct Validation Function] <<function>>
-  [Acct Post Function] <<function>>
-  [OFAC Function] <<function>>
-  [Events Function] <<function>>
-  [RFRF Function] <<function>>
-  [Watchdog/Recovery Function] <<function>>
+  [Acct Validation Function]
+  [Acct Post Function]
+  [OFAC Function]
+  [Events Function]
+  [RFRF Function]
+  [Watchdog/Recovery Function]
   [Blob Storage (WAL)]
   [Event Hub]
   [Redis Cache (DC04)]
@@ -42,24 +51,30 @@ package "Azure - US WEST CENTRAL (DC06)" {
   [OFAC Proxy DC06]
   [Events API Proxy DC06]
   [RFRF API Proxy DC06]
-  [Acct Validation Function DC06] <<function>>
-  [Acct Post Function DC06] <<function>>
-  [OFAC Function DC06] <<function>>
-  [Events Function DC06] <<function>>
-  [RFRF Function DC06] <<function>>
-  [Watchdog/Recovery Function DC06] <<function>>
+  [Acct Validation Function DC06]
+  [Acct Post Function DC06]
+  [OFAC Function DC06]
+  [Events Function DC06]
+  [RFRF Function DC06]
+  [Watchdog/Recovery Function DC06]
   [Blob Storage (WAL) DC06]
   [Event Hub DC06]
   [Redis Cache (DC06)]
   [CosmosDB (DC06)]
 }
 
-' GPT sends inbound messages
-GPT --> [Acct Validation Proxy]
-GPT --> [Acct Post Proxy]
-GPT --> [OFAC Proxy]
-GPT --> [Events API Proxy]
-GPT --> [RFRF API Proxy]
+' CNB GTM routes to all proxies
+[CNB GTM] --> [Acct Validation Proxy]
+[CNB GTM] --> [Acct Post Proxy]
+[CNB GTM] --> [OFAC Proxy]
+[CNB GTM] --> [Events API Proxy]
+[CNB GTM] --> [RFRF API Proxy]
+
+[CNB GTM] --> [Acct Validation Proxy DC06]
+[CNB GTM] --> [Acct Post Proxy DC06]
+[CNB GTM] --> [OFAC Proxy DC06]
+[CNB GTM] --> [Events API Proxy DC06]
+[CNB GTM] --> [RFRF API Proxy DC06]
 
 ' Function flows (DC04)
 [Acct Validation Proxy] --> [Acct Validation Function]

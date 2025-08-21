@@ -1,0 +1,59 @@
+@startuml
+skinparam shadowing false
+skinparam linetype ortho
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+  RoundCorner 10
+}
+
+' External Systems
+package "External Systems" {
+  rectangle GPT_API as "GPT API"
+  rectangle FIS_Core as "FIS Core\n(On-Prem)"
+}
+
+' Primary Region
+package "Azure US WEST 2 (Primary)" {
+  rectangle Redis_Primary as "Redis\n(No Persistence)"
+  rectangle Cosmos_Primary as "Cosmos DB"
+  rectangle Processor_Primary as "Processor"
+}
+
+' Secondary Region
+package "Azure US WEST CENTRAL (DR)" {
+  rectangle Redis_Secondary as "Redis\n(Replica)"
+  rectangle Cosmos_Secondary as "Cosmos DB\nReplica"
+  rectangle Processor_Secondary as "Processor (DR)"
+}
+
+' Write & Processing Flow in Primary
+GPT_API --> Redis_Primary : Check txn ID\n(already processed?)
+Redis_Primary --> Processor_Primary : Allow if not seen
+Processor_Primary --> Cosmos_Primary : Write transaction data
+Processor_Primary --> FIS_Core : Post transaction
+Processor_Primary --> Redis_Primary : Mark txn as processed
+
+' DR Flow
+GPT_API --> Redis_Secondary : Check txn ID\n(if failover active)
+Redis_Secondary --> Processor_Secondary : Allow if not seen
+Processor_Secondary --> Cosmos_Secondary : Write transaction
+Processor_Secondary --> FIS_Core : Post transaction
+Processor_Secondary --> Redis_Secondary : Mark txn as processed
+
+' Replication Arrows
+Redis_Primary -[dashed]-> Redis_Secondary : Redis Replication\n(CRDT-style)
+Cosmos_Primary -[dashed]-> Cosmos_Secondary : Cosmos DB Geo-Replication
+
+' Notes
+note right of Redis_Primary
+Tracks: txn ID + posted flag.\n
+Used for duplicate prevention.
+end note
+
+note bottom of Processor_Secondary
+Only runs if DR region is active.\n
+Fails closed if Redis not accessible.
+end note
+
+@enduml

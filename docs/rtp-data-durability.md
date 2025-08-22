@@ -1,64 +1,76 @@
 # RTP Data Durability
 
-This component of the architecture is responsible for ensuring **no data is lost** under any failure scenario. It acts as a protective buffer between message intake and downstream processing.
+This section explains how our RTP middleware ensures **zero data loss** and **no duplicate processing** under any failure condition, using only **Cosmos DB** and **Redis**. The design meets the requirement of RPO = last committed transaction and RTO ≤ 4 hours.
 
 
 ## Purpose
 
-Guarantee **zero data loss** for critical financial transactions—even in the event of:
+The purpose of this layer is to ensure all critical transaction data is captured and not lost, regardless of what fails:
 
-- Region failure
-- Queue corruption
-- Redis desync
-- Code bugs or restarts
+- A region outage
+- Redis cache failures or desync
+- Code crashes or container restarts
+- Broken connection between datacenters
+
+It also ensures we **never process a transaction more than once**, which is critical for financial applications.
 
 
-## Components
+## Core Components
 
 | Component             | Purpose                                                                 |
 |-----------------------|-------------------------------------------------------------------------|
-| **Message API Call**  | Incoming transaction request (e.g., from vendor or channel system)      |
-| **Blob Storage (WAL)**| Write-Ahead Log: durable and timestamped storage of every inbound call  |
-| **Azure Service Bus** | High-throughput message queue for processing                            |
-| **Redis Cache**       | Prevents duplicate transaction execution                                |
-| **Queue Processor**   | Reads messages from the queue and executes processing logic             |
+| **Message API Call**  | Receives RTP-related API calls from the vendor (e.g., AccountPost, ADV) |
+| **Cosmos DB**         | Durable, indexed storage for all API messages (by type)                 |
+| **Redis Cache**       | Tracks which transactions have already been processed (deduplication)   |
 
 
 ## Workflow Summary
 
 1. **Message Received**
-   - Message API receives a transaction from upstream source (e.g., RTP rail or channel system)
+   - API receives a call from vendor GPT (e.g., AccountPost or ADV).
+   
+2. **Cosmos Write (Durable Storage)**
+   - The message payload is written to the appropriate Cosmos DB collection (e.g., AccountPost, OFAC, ADV).
+   - Cosmos DB is set to geo-replicate to the secondary region.
 
-2. **Durable Logging (Blob)**
-   - Immediately writes the full message payload to Blob Storage (Write-Ahead Log) to protect against failures
+3. **Redis Entry (Deduplication Flag)**
+   - A transaction ID is written to Redis with a flag like `false` or `pending` to indicate the message has not yet been processed.
 
-3. **Message Queuing**
-   - Message is enqueued to Azure Service Bus for processing
-
-4. **Idempotency Marker**
-   - A key is written to Redis with a “pending” or false flag
-
-5. **Queue Processing**
-   - Queue Processor is triggered by the message in SB
-   - Processor checks Redis: if already processed, skip (prevents duplicates)
-   - After successful processing, updates Redis to true (processed)
+4. **Processing Logic**
+   - Processing logic checks Redis before doing any downstream work.
+   - If the flag is already `true`, the transaction is skipped (prevents duplicates).
+   - Once processing is successfully completed, Redis is updated to `true`.
 
 
-## Key Resilience Benefits
+## Key Resilience Features
 
-| Feature                   | Description                                                                 |
-|---------------------------|-----------------------------------------------------------------------------|
-| **Blob WAL**              | Recovers lost or corrupted messages via re-read                             |
-| **Redis Flag Check**      | Avoids processing the same message twice (deduplication)                    |
-| **Azure SB Checkpointing**| Auto-retries or skips poison messages with built-in resiliency              |
-| **Manual Replay Ready**   | Operations team can manually re-push Blob WAL messages if needed            |
+| Feature                     | Description                                                                 |
+|-----------------------------|-----------------------------------------------------------------------------|
+| **Cosmos DB Geo-Replication** | Ensures data is available in both regions for fast recovery                  |
+| **Redis Deduplication Check** | Prevents duplicate processing even if the same message arrives twice         |
+| **Component Region Awareness** | Components only execute if their region is currently marked "active" (via Redis) |
+| **Conflict Protection**     | If Redis replication fails, fallback deduping logic can be invoked using Cosmos |
 
 
-## Scenarios Covered
+## Failure Scenarios & Recovery
 
-| Failure Scenario                  | Result                                  | Recovery Path                                  |
-|----------------------------------|------------------------------------------|------------------------------------------------|
-| Queue fails                      | Blob still holds message                 | Re-post from WAL                               |
-| Processor fails mid-run          | Redis flag not set → retry safe          | Processor resumes safely                       |
-| Region loss                      | Replicated WAL + Redis enables resume    | Use backup region’s services                   |
-| Redis corruption                 | Blob/WAL ensures message is not lost     | Recheck message intent via WAL                 |
+| Failure Scenario                         | Result                                     | Recovery Path                                               |
+|------------------------------------------|--------------------------------------------|--------------------------------------------------------------|
+| **Region failure (e.g., West 2 outage)** | Cosmos replicated to paired region         | Switch to secondary region, resume from Cosmos + Redis       |
+| **Redis cache outage**                  | Deduplication flag may be unavailable      | Block processing; resume after Redis availability or verify via Cosmos |
+| **API or processing crash**             | Data persisted in Cosmos                   | Reprocess transaction using ID; Redis ensures no duplicates  |
+| **Network split between datacenters**   | Redis may become stale                     | Use active-region flag, prevent double execution, reconcile on recovery |
+| **Code bug or function restart**        | Message may re-trigger                     | Redis deduplication ensures reprocessing is safe             |
+
+
+## Summary
+
+This design eliminates data loss and avoids duplicates by relying on:
+
+- **Durable storage** in Cosmos DB
+- **In-memory flags** in Redis
+- **Cross-region checks** and failover controls
+- **Region-aware processing logic** (only active region executes)
+
+It is designed for high-resilience middleware operating in a financial transaction environment, meeting strict RPO and RTO guarantees without relying on queues.
+

@@ -1,0 +1,38 @@
+@startuml
+title XmlDation FVS: File Verification Flow (Sequence)
+
+actor "User/System\n(ERP / Hub / Bank Portal)" as USER
+participant "FVS Intake\n(Web/API/SFTP)" as INTAKE
+participant "Syntax Validator\n(XSD)" as XSD
+participant "Business Rule Engine" as BRE
+database "Rule Library\n(Scheme + Bank)" as RULES
+participant "Report Service\n(HTML/PDF/JSON)" as REPORT
+
+USER -> INTAKE : 1) Upload file\n(XML: pain.001/pacs.008/MT/MX/local)
+INTAKE -> XSD : 2) Validate against schema (XSD)
+XSD --> INTAKE : Result: OK / Syntax errors
+
+alt Syntax errors
+  INTAKE -> REPORT : Build report (errors)
+  REPORT --> USER : 3) Return report (fix & resubmit)
+else Syntax OK
+  INTAKE -> BRE : 3) Run business rules
+  BRE -> RULES : Load scheme+bank profiles
+  RULES --> BRE : Constraints & versions
+  BRE --> INTAKE : Rule results (errors/warnings/passes)
+  INTAKE -> REPORT : 4) Build consolidated report
+  REPORT --> USER : 5) Return report (errors/warnings/passes)
+end
+
+loop Iterate until clean
+  USER -> INTAKE : Resubmit corrected file
+  ... repeat validation & reporting ...
+end
+
+note right of REPORT
+  Outputs:
+  • Human-readable (HTML/PDF)
+  • Machine-readable (JSON/CSV)
+  • Error codes + rule references
+end note
+@enduml

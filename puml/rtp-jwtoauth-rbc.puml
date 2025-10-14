@@ -1,0 +1,69 @@
+@startuml
+title System-to-System OAuth2 Flow: RBC UGPP → IdP → Apigee → Target API
+
+autonumber
+skinparam sequenceArrowThickness 1
+skinparam sequenceMessageAlign center
+skinparam ParticipantPadding 20
+skinparam BoxPadding 10
+skinparam ResponseMessageBelowArrow true
+skinparam participant {
+  BorderColor Black
+  BackgroundColor LightGray
+  FontStyle bold
+}
+
+participant "RBC UGPP\n(System Client)" as UGPP
+participant "Identity Provider\n(IdP / Auth Server)" as IDP
+participant "Apigee\n(API Gateway / Proxy)" as APIGEE
+participant "Target API\n(Resource Server)" as API
+
+== Obtain Access Token via Signed JWT ==
+UGPP -> IDP: POST /oauth2/token\n(client_credentials + JWT assertion)
+activate IDP
+note right of IDP
+Validates JWT:\n- Signature (kid → JWKS)\n- iss/sub = client_id\n- aud = token endpoint\n- exp/nbf/iat/jti (validity)
+end note
+IDP --> UGPP: 200 OK { access_token, token_type:"Bearer", expires_in }
+deactivate IDP
+
+== Call API through Apigee ==
+UGPP -> APIGEE: {GET|POST} /proxy/resource\nAuthorization: Bearer <access_token>
+activate APIGEE
+note right of APIGEE
+Apigee policies:\n- OAuthV2.VerifyJWT or introspection\n- Quota/SpikeArrest\n- CORS/headers\n- [Optional mTLS]\n- Claim checks (aud, scope)
+end note
+
+alt Token invalid or expired
+  APIGEE --> UGPP: 401 Unauthorized (error="invalid_token")
+  deactivate APIGEE
+
+  ... Reacquire token ...
+  UGPP -> IDP: POST /oauth2/token (new client_assertion)
+  activate IDP
+  IDP --> UGPP: 200 OK { access_token }
+  deactivate IDP
+
+  UGPP -> APIGEE: Retry /proxy/resource\nAuthorization: Bearer <new_access_token>
+  activate APIGEE
+end
+
+APIGEE -> API: Forward /request\n[Authorization: Bearer <access_token> or mTLS]\n[x-correlation-id]
+activate API
+API --> APIGEE: 200 OK { payload }
+deactivate API
+
+APIGEE --> UGPP: 200 OK { payload }
+deactivate APIGEE
+
+== Gateway-side failure examples ==
+group Rate limit / SpikeArrest
+  UGPP -> APIGEE: request
+  APIGEE --> UGPP: 429 Too Many Requests
+end
+group AuthZ failure (scope/audience)
+  UGPP -> APIGEE: request with Bearer
+  APIGEE --> UGPP: 403 Forbidden
+end
+
+@enduml
